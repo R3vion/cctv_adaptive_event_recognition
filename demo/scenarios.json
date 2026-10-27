@@ -1,0 +1,147 @@
+{
+  "description": "Demo scenarios. Import each video on the Import page with the given camera id (the default camera id is the file name, so only FrontPorch needs typing), then run `python -m scripts.seed_demo` to create the prompts. Outcomes are per prompt and episode: ALERT (detected), NEEDS_REVIEW, NONE.",
+  "scenarios": [
+    {
+      "camera_id": "LivingRoomSmoke",
+      "case": "single-frame",
+      "videos": [{"file": "LivingRoomSmoke.mp4"}],
+      "conditions": [
+        {"prompt": "Alert me if you see smoke.", "expected_scope": "frame", "accepted": [["ALERT"]]}
+      ],
+      "notes": "Smoke builds up slowly; expected to fire on the 2nd-3rd event, not the first."
+    },
+    {
+      "camera_id": "CarFireAtGasStation",
+      "case": "single-frame",
+      "videos": [{"file": "CarFireAtGasStation.mp4"}],
+      "conditions": [
+        {"prompt": "Alert me if you see fire.", "expected_scope": "frame", "accepted": [["ALERT"]]}
+      ]
+    },
+    {
+      "camera_id": "MetalForgeBlast",
+      "case": "single-frame",
+      "videos": [{"file": "MetalForgeBlast.mp4"}],
+      "conditions": [
+        {"prompt": "Alert me if there is an explosion or fire.", "expected_scope": "frame", "accepted": [["ALERT"]]}
+      ]
+    },
+    {
+      "camera_id": "WarehouseWorkers",
+      "case": "negative",
+      "videos": [{"file": "WarehouseWorkers.mp4"}],
+      "conditions": [
+        {"prompt": "Alert me if you see smoke.", "expected_scope": "frame", "accepted": [["NONE"]]}
+      ],
+      "notes": "People move (the camera detector fires), but there is no smoke."
+    },
+    {
+      "camera_id": "PursuitAndFall",
+      "case": "event",
+      "videos": [{"file": "PursuitAndFall.mp4"}],
+      "conditions": [
+        {"prompt": "Alert me if someone falls to the ground.", "expected_scope": "event", "accepted": [["ALERT"]]}
+      ]
+    },
+    {
+      "camera_id": "StairwellEscape",
+      "case": "event",
+      "videos": [{"file": "StairwellEscape.mp4"}],
+      "conditions": [
+        {"prompt": "Alert me if people are fleeing or running away.", "expected_scope": "event", "accepted": [["ALERT"]]}
+      ]
+    },
+    {
+      "camera_id": "ShopRobbery",
+      "case": "event",
+      "videos": [{"file": "ShopRobbery.mp4"}],
+      "conditions": [
+        {"prompt": "Alert me if there is an armed robbery.", "expected_scope": "event", "accepted": [["ALERT"]]}
+      ]
+    },
+    {
+      "camera_id": "StoreInterior",
+      "case": "negative",
+      "videos": [{"file": "StoreInterior.mp4"}],
+      "conditions": [
+        {"prompt": "Alert me if there is an armed robbery.", "expected_scope": "event", "accepted": [["NONE"]]}
+      ],
+      "notes": "Normal shop traffic: customers, staff, a security guard."
+    },
+    {
+      "camera_id": "PeopleEnteringHouse",
+      "case": "uncertain",
+      "videos": [{"file": "PeopleEnteringHouse.mp4"}],
+      "conditions": [
+        {"prompt": "Alert me if someone breaks into the house.", "expected_scope": "event", "accepted": [["NEEDS_REVIEW"]]}
+      ],
+      "notes": "Residents or intruders? The footage alone cannot tell."
+    },
+    {
+      "camera_id": "FedExDeliveryDog",
+      "case": "uncertain",
+      "videos": [{"file": "FedExDeliveryDog.mp4"}],
+      "conditions": [
+        {"prompt": "Alert me if an animal attacks a person.", "expected_scope": "event", "accepted": [["NEEDS_REVIEW"]]}
+      ],
+      "notes": "A dog scares the courier; whether it is an attack is ambiguous."
+    },
+    {
+      "camera_id": "WaitingOutside",
+      "case": "history",
+      "videos": [{"file": "WaitingOutside.mp4"}],
+      "conditions": [
+        {"prompt": "Alert me if someone loiters in front of the entrance for a long time (longer than 30 seconds).", "expected_scope": "history", "accepted": [["ALERT"]]}
+      ],
+      "notes": "Six consecutive events of one person waiting and looking around."
+    },
+    {
+      "camera_id": "PackageDeliveryFrontDoor",
+      "case": "history",
+      "videos": [{"file": "PackageDeliveryFrontDoor.mp4"}],
+      "conditions": [
+        {"prompt": "Alert me if someone leaves a package at the door and then walks away.", "expected_scope": "history", "accepted": [["ALERT"]]}
+      ]
+    },
+    {
+      "camera_id": "PackageDelivery",
+      "case": "uncertain",
+      "videos": [{"file": "PackageDelivery.mp4"}],
+      "conditions": [
+        {"prompt": "Alert me if someone leaves a package at the door and then walks away.", "expected_scope": "history", "accepted": [["NEEDS_REVIEW"]]}
+      ],
+      "notes": "Only 7 s of footage: too little information."
+    },
+    {
+      "camera_id": "FedExFlyingDelivery",
+      "case": "history",
+      "videos": [{"file": "FedExFlyingDelivery.mp4"}],
+      "conditions": [
+        {"prompt": "Alert me if someone leaves a package at the door and then walks away.", "expected_scope": "history", "accepted": [["ALERT", "NEEDS_REVIEW"]]}
+      ],
+      "notes": "Night, the package is thrown in about half a second - the adaptive frame selection matters here."
+    },
+    {
+      "camera_id": "FoodDeliveryPickup",
+      "case": "negative",
+      "videos": [{"file": "FoodDeliveryPickup.mp4"}],
+      "conditions": [
+        {"prompt": "Alert me if someone leaves a package at the door and then walks away.", "expected_scope": "history", "accepted": [["NONE"]]}
+      ],
+      "notes": "The food is handed over in person, nothing is left behind."
+    },
+    {
+      "camera_id": "FrontPorch",
+      "case": "history",
+      "videos": [
+        {"file": "foodDelivery.mp4", "import_as": "new camera FrontPorch"},
+        {"file": "FoodRobbery.mp4", "import_as": "existing camera FrontPorch, start = last event + 5 minutes (new episode)"}
+      ],
+      "conditions": [
+        {"prompt": "Alert me if someone leaves a package at the door and then walks away.", "expected_scope": "history", "accepted": [["ALERT"], ["NONE", "NEEDS_REVIEW"]]},
+        {"prompt": "Alert me if someone takes away a package that was delivered earlier.", "expected_scope": "history", "accepted": [["NONE"], ["ALERT"]]}
+      ],
+      "notes": "Two episodes of the same camera. The second prompt can only fire in episode 2 by using the camera memory of episode 1."
+    }
+  ]
+}

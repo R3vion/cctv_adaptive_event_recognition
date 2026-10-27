@@ -1,0 +1,38 @@
+flowchart TB
+    U(["User"])
+
+    subgraph CAM["① Simulated camera system"]
+        IMP["Import page<br/>upload · trigger slider · threshold"]
+        FS[/"data/processed/CAMERA/chunk_NNN<br/>10 s MJPEG + trigger_frame.jpg"/]
+        EV[("events.db<br/>camera events")]
+        IMP --> FS
+        IMP --> EV
+    end
+
+    subgraph AN["② Analytics – FastAPI + background worker"]
+        CA["Condition analysis (LLM, once per prompt)<br/>scope · focus questions · criteria"]
+        W["Worker: discover → queue"]
+        EP["Episodes<br/>timestamp gap · idle close"]
+        OB["Observation – 1 VLM call per event<br/>adaptive frames · shared · cached"]
+        DE["Decision per prompt<br/>frame · event · history"]
+        AL["Alerts<br/>derived · key frame"]
+        SU["Episode summary → camera memory"]
+        W --> EP --> OB --> DE --> AL
+        EP -->|on close| SU -->|memory| DE
+    end
+
+    OL(["Ollama · qwen3.6:27b"])
+    ADB[("analytics.db<br/>prompts · selections · observations<br/>evaluations · alerts · LLM log")]
+    UI["Web UI – Dashboard · Cameras · Alerts · Settings<br/>REST + live SSE"]
+
+    U -->|MP4| IMP
+    U -->|free-text prompt| CA
+    EV -->|read-only| W
+    FS --> OB
+    IMP -->|frame selection| ADB
+    OB <--> OL
+    DE <--> OL
+    CA <--> OL
+    AN <--> ADB
+    ADB --> UI
+    UI --> U

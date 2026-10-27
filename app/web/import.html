@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Import · CCTV Analytics</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="/static/js/common.js"></script>
+  <script src="/static/js/chart.js"></script>
+  <script src="/static/js/keyframes.js"></script>
+</head>
+<body data-page="import">
+  <header id="topbar"></header>
+  <main>
+    <div class="page-head">
+      <div>
+        <h1>Import video</h1>
+        <p>The simulated camera system: an MP4 becomes 10-second camera events with trigger frames and MJPEG clips.</p>
+      </div>
+    </div>
+
+    <section id="drop-section">
+      <label class="dropzone" id="dropzone">
+        <input type="file" id="file-input" accept="video/mp4,.mp4" hidden>
+        <span class="dz-icon" aria-hidden="true">⇪</span>
+        <strong>Drop an MP4 here</strong>
+        <span class="muted">or click to browse – it is cut into 10-second camera events</span>
+      </label>
+      <div id="upload-progress" class="card hidden" style="margin-top:16px">
+        <div class="row spread"><span id="upload-label">Uploading…</span><span class="muted" id="upload-pct"></span></div>
+        <div class="progress" style="margin-top:8px"><div id="upload-bar"></div></div>
+      </div>
+    </section>
+
+    <section id="session-section" class="hidden">
+      <div class="card">
+        <div class="row spread">
+          <h2 id="session-title" style="margin:0"></h2>
+          <button class="btn ghost" id="btn-discard">Discard</button>
+        </div>
+        <div class="grid grid-2" style="margin-top:12px">
+          <div class="stack">
+            <label class="field">Camera id
+              <input type="text" id="camera-id" list="camera-list" autocomplete="off" spellcheck="false">
+              <datalist id="camera-list"></datalist>
+            </label>
+            <div id="camera-note" class="note"></div>
+          </div>
+          <div class="stack">
+            <div class="row">
+              <label class="field" style="flex:1">Start timestamp (first event)
+                <input type="datetime-local" id="start-ts" step="1">
+              </label>
+              <div class="field" style="font-size:12px;color:var(--text-muted)">Default
+                <div class="seg" id="ts-mode"><button data-mode="today" class="on">Today</button><button data-mode="random">Random</button></div>
+              </div>
+            </div>
+            <div id="episode-note" class="note"></div>
+          </div>
+        </div>
+        <div class="muted small" id="video-info" style="margin-top:10px"></div>
+      </div>
+
+      <div class="card">
+        <div class="row spread">
+          <h2 style="margin:0">Segments</h2>
+          <div id="legend"></div>
+        </div>
+        <p class="muted small" style="margin:6px 0 0">Move the slider to pick the trigger frame. Drag the dashed threshold line to change which frames will be sent to the model – a manual threshold overrides the 5–30 frame limits.</p>
+      </div>
+      <div id="segments"></div>
+
+      <div class="savebar row spread">
+        <div id="save-summary" class="muted"></div>
+        <button class="btn primary" id="btn-save">Save events</button>
+      </div>
+    </section>
+
+    <section id="done-section" class="hidden">
+      <div class="card stack">
+        <div class="note ok" id="done-note"></div>
+        <div id="done-events" class="table-wrap"></div>
+        <div class="row"><button class="btn primary" id="btn-another">Import another video</button><a class="btn" id="done-camera-link" href="/cameras">Open camera</a></div>
+      </div>
+    </section>
+  </main>
+  <script src="/static/js/import.js"></script>
+</body>
+</html>

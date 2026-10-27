@@ -1,0 +1,11 @@
+# Development override: live-reloads the source tree mounted from the host.
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+services:
+  app:
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/app"]
+    volumes:
+      - ./data:/app/data
+      - ./app:/app/app
+      - ./tests:/app/tests
+      - ./demo:/app/demo
+      - ./scripts:/app/scripts

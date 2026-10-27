@@ -1,0 +1,19 @@
+services:
+  app:
+    build: .
+    image: cctv-adaptive-event-recognition
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    env_file:
+      - path: .env
+        required: false   # without it the defaults apply (see .env.example)
+    environment:
+      # container paths win over anything a local .env sets for host development
+      DATA_DIR: /app/data
+      FFMPEG_BIN: ffmpeg
+      FFPROBE_BIN: ffprobe
+    volumes:
+      - ./data:/app/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

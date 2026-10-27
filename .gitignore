@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Local configuration (copy .env.example -> .env)
+.env
+
+# Runtime data: imported videos, chunks, databases, caches
+data/
+.devdata/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local tooling
+.claude/

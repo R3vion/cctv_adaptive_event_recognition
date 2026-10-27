@@ -1,0 +1,22 @@
+flowchart TD
+    E["New camera event"] --> G{"≤ 15 s after the camera's<br/>last event?"}
+    G -->|yes| J["join the episode"]
+    G -->|no| C0["close the previous episode"] --> N["open a new episode"]
+    J --> F
+    N --> F["frames: adaptive selection<br/>(frame scope: trigger + best 2)"]
+    F --> O["observation: one VLM call<br/>answers every prompt's focus questions"]
+    O --> P{"prompt already said YES<br/>in this episode?"}
+    P -->|yes| S["SKIPPED"]
+    P -->|no| D{"scope"}
+    D -->|"frame / event"| D1["YES · NO · UNCERTAIN<br/>this event only"]
+    D -->|history| D2["YES · PENDING · NO<br/>all observations of the episode<br/>+ camera memory"]
+    D1 -->|YES| A["ALERT<br/>key frame, focus questions,<br/>reasoning"]
+    D2 -->|YES| A
+
+    X["episode closes<br/>(gap or idle)"] --> H{"history prompt<br/>without YES?"}
+    H -->|yes| CD["closing decision<br/>YES · NO · UNCERTAIN"]
+    CD -->|YES| A
+    CD -->|"UNCERTAIN"| R["NEEDS_REVIEW"]
+    X --> U{"frame / event prompt:<br/>UNCERTAIN, no YES?"}
+    U -->|yes| R
+    X --> M["episode summary<br/>→ camera memory"]
