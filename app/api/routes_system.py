@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from app.analytics import events_source, repo
 from app.analytics.bus import bus, plog
 from app.analytics.worker import worker
-from app.config import SPECS, env_defaults, get_settings, reload_settings, validate_override
+from app.config import SPEC_BY_KEY, SPECS, env_defaults, get_settings, reload_settings, validate_override
 from app.llm import prompts
 from app.llm.ollama_client import client
 
@@ -112,14 +112,17 @@ def update_settings(body: SettingsUpdate) -> dict:
     reload_settings()
     if clean:
         plog("settings", "updated: " + ", ".join(f"{k}={v}" for k, v in clean.items()))
+        bus.publish("settings", values=clean)  # open pages follow, e.g. the camera page's backfill default
     return get_settings_list()
 
 
 @router.delete("/settings/{key}")
 def reset_setting(key: str) -> dict:
     repo.delete_setting(key)
-    reload_settings()
+    current = reload_settings()
     plog("settings", f"{key} reset to the .env value")
+    if key in SPEC_BY_KEY and not SPEC_BY_KEY[key].hidden:
+        bus.publish("settings", values={key: getattr(current, key)})
     return get_settings_list()
 
 

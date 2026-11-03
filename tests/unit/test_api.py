@@ -121,3 +121,16 @@ def test_queued_jobs_are_counted_and_announced(data_dir, monkeypatch):
     assert ("job", {"job_id": job, "camera_id": "Porch", "status": "QUEUED"}) in published
     assert client.get("/api/dashboard").json()["jobs"] == {"QUEUED": 1}
     assert client.get("/api/system/status").json()["worker"]["jobs"] == {"QUEUED": 1}
+
+
+def test_settings_changes_are_announced(data_dir, monkeypatch):
+    repo.init()
+    client = TestClient(app)  # no lifespan: the worker stays off
+    published = []
+    monkeypatch.setattr(bus, "publish", lambda type_, **data: type_ == "settings" and published.append((type_, data)))
+    client.put("/api/settings", json={"values": {"analysis_mode": "manual"}})
+    client.delete("/api/settings/analysis_mode")
+    assert published == [("settings", {"values": {"analysis_mode": "manual"}}),
+                         ("settings", {"values": {"analysis_mode": get_settings().analysis_mode}})]
+    client.delete("/api/settings/ollama_base_url")
+    assert len(published) == 2  # hidden settings are never announced

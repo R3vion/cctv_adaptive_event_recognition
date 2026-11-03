@@ -115,11 +115,17 @@ async function showVersions(cond, box) {
 }
 
 // add / edit form
+// "Run on existing events" follows the dashboard's auto mode until the user ticks it by hand.
+function autoBackfill() {
+  return st.data.analysis_mode === "auto";
+}
+
 function openForm(cond) {
   st.form = cond
     ? { id: cond.id, prompt: cond.prompt, title: cond.title, scope: cond.scope, questions: cond.focus_questions.map((q) => q.question),
         criteria: cond.decision_criteria, suggestion: cond.suggestion, llm_call_id: cond.llm_call_id, analysed: true, busy: false }
     : { id: null, prompt: "", analysed: false, busy: false };
+  Object.assign(st.form, { backfill: autoBackfill(), backfillTouched: false });
   renderForm();
   document.getElementById("prompt-form").scrollIntoView({ behavior: "smooth", block: "center" });
 }
@@ -151,7 +157,8 @@ function renderForm() {
       <label class="field" style="margin-top:8px">Decision criteria
         <textarea id="f-criteria" rows="3">${esc(f.criteria)}</textarea></label>
       <div class="row spread" style="margin-top:10px">
-        <label class="switch"><input type="checkbox" id="f-backfill"> Run on existing events after saving</label>
+        <label class="switch" title="Ticked by default while “Analyse new events automatically” is on (dashboard)">
+          <input type="checkbox" id="f-backfill" ${f.backfill ? "checked" : ""}> Run on existing events after saving</label>
         <div class="row"><button class="btn ghost" id="f-cancel">Cancel</button><button class="btn primary" id="f-save">Save</button></div>
       </div>` : `<div class="row" style="margin-top:8px"><button class="btn ghost" id="f-cancel">Cancel</button></div>`}
     </div>`;
@@ -169,6 +176,7 @@ function renderForm() {
     f.busy = false; renderForm();
   });
   if (f.analysed) {
+    val("f-backfill").addEventListener("change", (e) => { f.backfill = e.target.checked; f.backfillTouched = true; });
     val("f-save").addEventListener("click", async () => {
       const body = {
         prompt: val("f-prompt").value, title: val("f-title").value, scope: val("f-scope").value,
@@ -374,6 +382,15 @@ let reloadTimer = null;
 document.addEventListener("DOMContentLoaded", () => {
   load().catch((e) => { document.getElementById("app").innerHTML = `<div class="card note err">${esc(e.message)}</div>`; });
   onStream((msg) => {
+    if (msg.type === "settings" && st.data && "analysis_mode" in msg.values) {
+      st.data.analysis_mode = msg.values.analysis_mode;
+      const f = st.form, box = document.getElementById("f-backfill");
+      if (f && !f.backfillTouched) {
+        f.backfill = autoBackfill();
+        if (box) box.checked = f.backfill; // no re-render: it would drop unsaved edits in the form
+      }
+      return;
+    }
     const mine = msg.camera_id === cameraId || (msg.event_id && msg.event_id.startsWith(cameraId + "#")) || msg.type === "job";
     if (!mine || st.form) return;
     if (["evaluation", "queue", "alert", "episode", "conditions", "job"].includes(msg.type)) {
