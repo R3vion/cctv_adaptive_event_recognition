@@ -142,6 +142,13 @@ def delete_camera(camera_id: str) -> dict:
     return {"ok": True, **removed, "alerts": len(analytics["alert_ids"])}
 
 
+def _enqueue_job(kind: str, payload: dict) -> int:
+    """Queue a re-run / backfill job and tell the browsers right away (the Queue counters)."""
+    job = repo.enqueue_job(kind, payload)
+    bus.publish("job", job_id=job, camera_id=payload.get("camera_id"), status="QUEUED")
+    return job
+
+
 def _eval_brief(e: dict) -> dict:
     return {k: e[k] for k in ("id", "decision", "confidence", "is_closing", "run_id", "condition_version_id")}
 
@@ -176,7 +183,7 @@ def create_condition(camera_id: str, body: ConditionBody) -> dict:
     cond = repo.create_condition(camera_id, spec)
     plog("prompt", f"prompt added: \"{cond['title']}\" ({cond['scope']})", camera_id=camera_id)
     if body.backfill:
-        repo.enqueue_job("backfill", {"condition_id": cond["id"], "camera_id": camera_id})
+        _enqueue_job("backfill", {"condition_id": cond["id"], "camera_id": camera_id})
     bus.publish("conditions", camera_id=camera_id)
     return cond
 
@@ -193,7 +200,7 @@ def update_condition(condition_id: int, body: ConditionBody) -> dict:
     updated = repo.new_version(condition_id, spec)
     plog("prompt", f"prompt edited → version {updated['version']}: \"{updated['title']}\"", camera_id=cond["camera_id"])
     if body.backfill:
-        repo.enqueue_job("backfill", {"condition_id": condition_id, "camera_id": cond["camera_id"]})
+        _enqueue_job("backfill", {"condition_id": condition_id, "camera_id": cond["camera_id"]})
     bus.publish("conditions", camera_id=cond["camera_id"])
     return updated
 
@@ -229,7 +236,7 @@ def backfill(condition_id: int, body: BackfillBody) -> dict:
     cond = repo.get_condition(condition_id)
     if cond is None:
         raise HTTPException(404, "prompt not found")
-    job = repo.enqueue_job("backfill", {"condition_id": condition_id, "camera_id": cond["camera_id"],
+    job = _enqueue_job("backfill", {"condition_id": condition_id, "camera_id": cond["camera_id"],
                                         "force_observe": body.force_observe})
     plog("job", f"\"{cond['title']}\" queued to run on existing events (job #{job})", camera_id=cond["camera_id"])
     return {"job_id": job}
@@ -265,7 +272,7 @@ def rerun(event_id: str, body: RerunBody) -> dict:
     cond = repo.get_condition(body.condition_id)
     if cond is None:
         raise HTTPException(404, "prompt not found")
-    job = repo.enqueue_job("rerun", {"event_id": event_id, "condition_id": body.condition_id,
+    job = _enqueue_job("rerun", {"event_id": event_id, "condition_id": body.condition_id,
                                      "force_observe": body.force_observe, "camera_id": ev["camera_id"]})
     what = "the episode is replayed" if cond["scope"] == "history" else "this event only"
     plog("job", f"re-run of \"{cond['title']}\" queued (job #{job}; {what})", camera_id=ev["camera_id"],

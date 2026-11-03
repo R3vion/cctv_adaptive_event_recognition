@@ -88,7 +88,7 @@ Settings page.
 
 ## 3. Accepted risks
 
-- **No context limit** on history decisions (author's choice): very long episodes may
+- **No context limit** on history decisions: very long episodes may
   exceed `num_ctx` or slow down.
 - **Stop after first YES**: later evidence of the same episode is not added to the alert.
 - **Serial processing**: one worker, one event at a time – fine for a demo, not for a
@@ -109,7 +109,8 @@ Settings page.
 - **Quality**: a labelled evaluation set, confidence calibration, regression tests for the
   system prompts.
 - **Security**: authentication and roles, prompt-injection hardening of user prompts,
-  audit log.
+  audit log; Ollama on an internal network that only the analytics service can reach
+  (today the browser already never calls or sees it).
 - **Operations**: metrics and tracing, alert delivery (webhook / e-mail / VMS), retention
   policies, time zones.
 - **Input**: a real ingest API or RTSP instead of the import page.
@@ -125,7 +126,7 @@ Settings page.
 | 3 | Database layout | one file, separate tables | Two files: `events.db` (read-only for analytics) + `analytics.db` | Author |
 | 4 | DB access | SQLAlchemy, SQLModel | Plain `sqlite3` + Pydantic | Author |
 | 5 | UI technology | Jinja2 + HTMX, React SPA | FastAPI + plain HTML/CSS/JS, kept simple | Author |
-| 6 | Ollama | in compose (profile), mock mode | External, configured in `.env` | AI → accepted |
+| 6 | Ollama | in compose (profile), mock mode | External, configured in `.env` | Author |
 | 7 | Observation with several prompts | one VLM call per prompt; generic description only | One shared, focused VLM call per event | AI → accepted |
 | 8 | Episode grouping | gap + VLM confirmation; sliding window | Timestamp gap, configurable | AI → accepted |
 | 9 | Event source | scenario file; ingest API | Web import page with the full metadata spec (ids, camera = file name, timestamp format, today/random, 10 s split, trigger slider, folders, save) | Author |
@@ -140,7 +141,7 @@ Settings page.
 | 18 | Prompts per camera | single active prompt | Several, individually switchable | AI → accepted |
 | 19 | Observation cache | always fresh VLM call | Reuse when frames and questions match; force option | AI → accepted |
 | 20 | Who sets the scope | LLM only; user only | LLM proposes, user can override | AI → accepted |
-| 21 | Alert content | entity list | Confidence + reasoning, episode summary, key frame, **plus what triggered the alert and which focus questions were met** | Author (extended the proposal) |
+| 21 | Alert content | entity list | Confidence + reasoning, episode summary, key frame, **plus what triggered the alert and which focus questions were met** | Author |
 | 22 | Key frame | bounding box; always trigger frame | Model picks the frame, no box | Author |
 | 23 | Thinking mode | everywhere on / off | Off for observation, on for analysis and decisions, switchable | AI → accepted |
 | 24 | Error handling | pause worker | Retry → ERROR, Ollama status light | AI → accepted |
@@ -153,13 +154,13 @@ Settings page.
 | 31 | Video tooling | OpenCV, PyAV | ffmpeg CLI (+ OpenCV for signals) | AI → accepted |
 | 32 | Live updates | WebSocket, polling | SSE | AI → accepted |
 | 33 | Processes | separate web and worker containers | One container, asyncio worker | AI → accepted |
-| 34 | Tests | mocked model client | Real model (thinking off) for AI parts; logic without a model | Author, clarified together |
+| 34 | Tests | mocked model client | Real model (thinking off) for AI parts; logic without a model | Author |
 | 35 | History context | state + last K; rolling summary | All observations of the episode | Author |
 | 36 | Context limit | limit + compression; sliding window | No limit | Author |
 | 37 | Episode end | only on the next event | Next event with gap **or** idle time | AI → accepted |
 | 38 | After a YES | append evidence; alert on every YES | Stop analysing that prompt in the episode | Author |
 | 39 | De-duplication | history scope only | Per episode for all scopes | AI → accepted |
-| 40 | Camera vs. event identity | numbering restarts per video | Editable camera id, pick existing camera, per-camera running `<camera>#NNN`, reject duplicate source file names; author raised the production problem (one camera, several separate happenings) | Author, solved together |
+| 40 | Camera vs. event identity | numbering restarts per video | Editable camera id, pick existing camera, per-camera running `<camera>#NNN`, reject duplicate source file names; author raised the production problem (one camera, several separate happenings) | Author |
 | 41 | Using earlier episodes | within episode only | Camera memory from episode summaries (24 h) | AI idea → accepted |
 | 42 | Closing decision for history scope | – | Closing decision call at episode end | AI idea → accepted |
 | 43 | Demo provisioning | scripted import | Manual import in the UI; the seed script only creates prompts | Author |
@@ -180,10 +181,12 @@ Settings page.
 | 58 | When the threshold can change | also later on the event page | Only during import | Author |
 | 59 | Manual threshold vs. limits | limits always apply | Manual threshold overrides the limits | Author |
 | 60 | Frames for frame-scope prompts | trigger only; full set | Max 3, subset of the full set | AI → accepted |
-| 61 | Where the selection is stored | `events.db` | `analytics.db` (follows the author's two-database rule) | AI idea → accepted |
+| 61 | Where the selection is stored | `events.db` | `analytics.db` (follows the author's two-database rule) | Author |
 | 62 | Defaults | – | See SPEC §10 | AI → accepted |
 | 63 | Default selection threshold | one fixed value from Settings (original plan) | **Auto, per video**: median + 6·MAD of the frame-to-frame change; fixed value still possible. Raised after measuring all 17 videos (a fixed 12 % gave 0 candidates for the night delivery) | Author, after measurements by AI |
 | 64 | Images vs. context window | raise num_ctx to 64k; fixed 1024 px | **Per-call auto-fit**: originals when they fit, otherwise every image of the call is scaled by the same factor to ~75 % of num_ctx (measured: ~1 token / 1000 px, 1412×1080 ≈ 1.5k tokens) | Author, after measurements by AI |
 | 65 | Demo camera ids | the illustrative names of the demo table | Camera id = file name (the import default, no typing) except **FrontPorch**, which holds two videos | AI (convenience), to be confirmed by the author |
-| 66 | Loitering demo prompt | "for a long time" | "… for a long time (longer than 30 seconds)" – the LLM otherwise chose 3 minutes, longer than the 60 s video | AI, after a live run |
+| 66 | Loitering demo prompt | "for a long time" | "… for a long time (longer than 30 seconds)" – the LLM otherwise chose 3 minutes, longer than the 60 s video | Author, after a live run |
 | 67 | Host port | fixed 8000 | `APP_PORT` (default 8000) – 8000 was taken on the development machine | AI |
+| 68 | Browser ↔ Ollama | a reverse-proxy route `/api/ollama/*` in the backend; an nginx container in front of the app | **No proxy needed – the backend is the only Ollama client.** The browser never gets the address: `OLLAMA_BASE_URL` is `.env`-only and hidden on the Settings page, status responses omit it, error texts are redacted | Author |
+| 69 | Queue display | events only (re-run / backfill jobs were invisible – the tile showed 0 while a job ran) | **Events + jobs** in one number, with an "events · jobs · waiting · errors" line; header light shows the same; a `job` message on enqueue refreshes them at once | Author |

@@ -19,8 +19,7 @@ from typing import Any
 from dotenv import load_dotenv
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-load_dotenv(PROJECT_ROOT / ".env")  # the project's .env, wherever the process was started
-load_dotenv()                       # plus a .env in the working directory, if any
+load_dotenv(PROJECT_ROOT / ".env")  # the project's .env, wherever the process was starter
 
 
 @dataclass(frozen=True)
@@ -35,6 +34,7 @@ class SettingSpec:
     editable: bool = True
     minimum: float | None = None
     maximum: float | None = None
+    hidden: bool = False  # the value never leaves the server (settings API sends None)
 
     @property
     def env_name(self) -> str:
@@ -43,7 +43,9 @@ class SettingSpec:
 
 SPECS: list[SettingSpec] = [
     # --- Ollama -----------------------------------------------------------
-    SettingSpec("ollama_base_url", str, "http://localhost:11434", "Ollama", "Base URL"),
+    SettingSpec("ollama_base_url", str, "http://localhost:11434", "Ollama", "Base URL",
+                "Set in .env only. Every Ollama call is made by the backend, so the browser "
+                "never needs – and never gets – this address.", editable=False, hidden=True),
     SettingSpec("ollama_model", str, "qwen3.6:27b", "Ollama", "Model"),
     SettingSpec("ollama_num_ctx", int, 32768, "Ollama", "Context window (num_ctx)", minimum=2048),
     SettingSpec("ollama_timeout_s", int, 300, "Ollama", "HTTP timeout per call (s)", minimum=10),

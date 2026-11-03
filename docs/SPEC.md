@@ -103,7 +103,7 @@ downscaled to `signal_side` px (long side, default 320), blurred, grey.
 
 - **Changed-pixel ratio (%)**: share of pixels whose grey value differs by more than
   `pixel_delta`.
-- **Histogram distance (%)**: Bhattacharyya distance of HSV colour histograms – catches
+- **Histogram distance (%)**: distance of HSV colour histograms – catches
   scene-level change (smoke, fire, darkening).
 - Score = `w_pixel · pixel + w_hist · histogram` (weights in Settings).
 
@@ -271,6 +271,11 @@ Statuses: `ACTIVE`, `NEEDS_REVIEW`, `CONFIRMED`, `DISMISSED`, `SUPERSEDED`. A
 ## 6. AI model (Ollama)
 
 - External Ollama service; model `qwen3.6:27b`.
+- **Only the backend talks to Ollama.** The browser calls the analytics API only, and the
+  Ollama address never reaches it: `OLLAMA_BASE_URL` is set in `.env` only (the Settings
+  page shows it as hidden), the status endpoints report reachability, version and model
+  without the address, and every error text is redacted (`<ollama>`) before it is stored
+  or sent.
 - `.env`: `OLLAMA_BASE_URL`, `OLLAMA_MODEL`; configurable from `.env` and the UI:
   thinking per stage (condition analysis on, observation off, decision on), `num_ctx`
   (32768), timeout (300 s), `keep_alive` (30m), max image side (0 = original).
@@ -302,11 +307,15 @@ Statuses: `ACTIVE`, `NEEDS_REVIEW`, `CONFIRMED`, `DISMISSED`, `SUPERSEDED`. A
 
 Access: plain `sqlite3` + Pydantic. There is no foreign key across the two files.
 
-## 8. Web UI (FastAPI + plain HTML/CSS/vanilla JS, English)
+## 8. Web UI (FastAPI + HTML/CSS/JS)
 
 Live updates via **Server-Sent Events** (`/api/stream`). No authentication.
 
-1. **Dashboard** – live pipeline log, worker and Ollama status, queue sizes, latest alerts.
+1. **Dashboard** – live pipeline log, worker and Ollama status, latest alerts, and a
+   **Queue** tile: camera events (queued + processing) plus re-run / backfill jobs
+   (queued + running), with "x events · y jobs · z waiting · e errors" below (waiting and
+   errors are events – *Analyze* retries them). The worker light in the header shows the
+   same summary and updates as soon as a job is queued.
 2. **Import** – see 3.
 3. **Cameras** – list; detail: prompts (create, edit → new version, enable/disable,
    delete, scope and focus questions), event timeline grouped by episode, per event ×
@@ -324,7 +333,7 @@ Live updates via **Server-Sent Events** (`/api/stream`). No authentication.
 4. **Alerts** – filterable list; detail with key frame, focus results, confidence,
    reasoning, episode summary, events, confirm / dismiss for `NEEDS_REVIEW`.
 5. **Settings** – every editable setting (overrides `.env`, with reset), Ollama connection
-   test, system prompts (read-only).
+   test (run by the backend), system prompts (read-only).
 
 ## 9. Technology
 
@@ -380,7 +389,7 @@ Camera ids in the demo are the file names (the import default), except **FrontPo
 - Each test video shows one real happening; in production one camera id can have many
   separate episodes – handled by episode grouping.
 - Analytics never writes `events.db`.
-- Timestamps are simulated; the idle part of episode closing uses the wall clock.
+- Timestamps are simulated; the idle part of episode closing uses exact timing.
 - No audio.
 
 ## 14. Out of scope

@@ -45,11 +45,11 @@ function renderShell() {
 
 async function loadStats() {
   dash = await api("/api/dashboard");
-  const q = dash.queue, a = dash.alerts;
+  const q = queueSummary(dash.queue, dash.jobs), a = dash.alerts;
   document.getElementById("tiles").innerHTML =
     tile("Cameras", dash.cameras, `${dash.events} events`) +
     tile("Active prompts", dash.prompts) +
-    tile("Queue", (q.QUEUED || 0) + (q.PROCESSING || 0), `${q.WAITING || 0} waiting · ${q.ERROR || 0} errors · ${q.DONE || 0} done`) +
+    tile("Queue", q.total, q.text) +
     tile("Alerts", a.ACTIVE || 0, `${a.NEEDS_REVIEW || 0} need review · ${a.CONFIRMED || 0} confirmed`);
   const w = dash.worker;
   document.getElementById("worker-card").innerHTML = `
@@ -102,7 +102,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       log.insertAdjacentHTML("afterbegin", logRow(msg.entry));
       while (log.children.length > 400) log.lastElementChild.remove();
     }
-    if (["alert", "queue", "worker", "episode"].includes(msg.type)) refreshStatsSoon();
+    if (["alert", "queue", "job", "worker", "episode"].includes(msg.type)) refreshStatsSoon();
     if (msg.type === "alert" && msg.status === "ACTIVE") toast(`Alert: ${msg.title || "new alert"} (${msg.camera_id})`, "err", 7000);
   });
 });

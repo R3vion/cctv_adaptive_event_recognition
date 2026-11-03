@@ -16,6 +16,7 @@ import threading
 import time
 from dataclasses import dataclass
 from typing import TypeVar
+from urllib.parse import urlsplit
 
 import cv2
 import httpx
@@ -77,6 +78,16 @@ def fit_images(images: list[ImageIn], text_chars: int, num_ctx: int, max_side: i
     return out, meta
 
 
+def redact(text: str) -> str:
+    """Error texts reach the browser and the call log; the Ollama address stays on the server."""
+    url = get_settings().ollama_url
+    parts = urlsplit(url)
+    for secret in (url, parts.netloc, parts.hostname):
+        if secret:
+            text = text.replace(secret, "<ollama>")
+    return text
+
+
 def _extract_json(text: str) -> str:
     text = text.strip()
     if text.startswith("```"):
@@ -92,12 +103,12 @@ class OllamaClient:
 
     # -- status -------------------------------------------------------------------
     def status(self, force: bool = False) -> dict:
+        """Reachability as the browser sees it: no address, only what the backend found."""
         with self._lock:
             if not force and self._status_cache and time.time() - self._status_cache[0] < 10:
                 return self._status_cache[1]
         s = get_settings()
-        info = {"url": s.ollama_url, "model": s.ollama_model, "ok": False, "model_available": False,
-                "version": None, "error": None}
+        info = {"model": s.ollama_model, "ok": False, "model_available": False, "version": None, "error": None}
         try:
             with httpx.Client(timeout=5) as client:
                 info["version"] = client.get(f"{s.ollama_url}/api/version").json().get("version")
@@ -106,7 +117,7 @@ class OllamaClient:
             info["model_available"] = any(m.get("name") == s.ollama_model or m.get("model") == s.ollama_model
                                           for m in tags)
         except Exception as exc:  # noqa: BLE001 - any failure means "offline"
-            info["error"] = str(exc)[:200]
+            info["error"] = redact(str(exc))[:200]
         with self._lock:
             self._status_cache = (time.time(), info)
         return info
@@ -147,13 +158,13 @@ class OllamaClient:
                                                 response=resp)
                 data = resp.json()
                 if resp.status_code >= 400 or data.get("error"):
-                    error = f"HTTP {resp.status_code}: {data.get('error') or resp.text[:300]}"
+                    error = redact(f"HTTP {resp.status_code}: {data.get('error') or resp.text[:300]}")
                     data = None
                     break  # client errors are not retried
                 error = None
                 break
             except (httpx.HTTPError, ValueError) as exc:
-                error = f"{type(exc).__name__}: {exc}"[:500]
+                error = redact(f"{type(exc).__name__}: {exc}")[:500]
                 if attempts <= retries:
                     time.sleep(min(2 ** (attempts - 1), 8))
         record.update(attempts=attempts, duration_ms=int((time.time() - started) * 1000))

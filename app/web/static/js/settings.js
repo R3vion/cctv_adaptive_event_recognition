@@ -6,6 +6,7 @@ let items = [];
 function input(s) {
   const id = `s-${s.key}`;
   const dis = s.editable ? "" : "disabled";
+  if (s.hidden) return `<span class="small muted">set in .env – not shown in the browser</span>`;
   if (s.type === "bool") return `<label class="switch"><input type="checkbox" id="${id}" ${s.value ? "checked" : ""} ${dis}> ${s.value ? "on" : "off"}</label>`;
   if (s.choices) return `<select id="${id}" ${dis}>${s.choices.map((c) => `<option ${c === s.value ? "selected" : ""}>${esc(c)}</option>`).join("")}</select>`;
   const type = s.type === "int" || s.type === "float" ? "number" : "text";
@@ -62,8 +63,8 @@ async function testOllama() {
   const r = await api("/api/settings/test-ollama", { method: "POST" });
   out.className = `note ${r.ok && r.model_available ? "ok" : r.ok ? "warn" : "err"}`;
   out.textContent = r.ok
-    ? `Reachable – Ollama ${r.version} at ${r.url}. Model ${r.model} ${r.model_available ? "is available" : "is NOT pulled on this server"}.`
-    : `Not reachable at ${r.url}: ${r.error}`;
+    ? `The backend reaches Ollama ${r.version}. Model ${r.model} ${r.model_available ? "is available" : "is NOT pulled on that server"}.`
+    : `The backend cannot reach Ollama: ${r.error}`;
   refreshStatus();
 }
 

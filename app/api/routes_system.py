@@ -62,6 +62,7 @@ def dashboard() -> dict:
         "events": sum(c["events"] for c in cams),
         "prompts": len(repo.list_conditions(active_only=True)),
         "queue": repo.queue_counts(),
+        "jobs": repo.job_counts(),
         "alerts": repo.alert_counts(),
         "recent_alerts": repo.list_alerts(limit=6),
         "worker": worker.status(),
@@ -91,8 +92,9 @@ def get_settings_list() -> dict:
             "key": spec.key, "label": spec.label, "group": spec.group, "help": spec.help,
             "type": spec.type.__name__, "choices": list(spec.choices) if spec.choices else None,
             "min": spec.minimum, "max": spec.maximum, "editable": spec.editable,
-            "value": getattr(current, spec.key), "env_value": env[spec.key],
-            "overridden": spec.key in current.overridden,
+            "value": None if spec.hidden else getattr(current, spec.key),
+            "env_value": None if spec.hidden else env[spec.key],
+            "overridden": spec.key in current.overridden, "hidden": spec.hidden,
         })
     return {"settings": items}
 

@@ -5,8 +5,10 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app.analytics import events_source, repo
+from app.analytics.bus import bus
 from app.camera_sim import store
-from app.config import get_settings
+from app.config import get_settings, set_test_overrides
+from app.llm.ollama_client import redact
 from app.main import app
 
 
@@ -91,3 +93,31 @@ def test_delete_camera_removes_events_files_and_analytics(data_dir):
     assert client.get("/api/alerts").json() == {"alerts": []}
     assert (data_dir / "processed" / "Gate").exists()
     assert client.delete("/api/cameras/Porch").status_code == 404
+
+
+def test_ollama_address_never_reaches_the_browser(data_dir):
+    set_test_overrides(data_dir=str(data_dir), ollama_base_url="http://127.0.0.1:9")
+    client = TestClient(app)  # no lifespan: the worker stays off
+    status = client.post("/api/settings/test-ollama").json()
+    assert not status["ok"] and "url" not in status and "127.0.0.1" not in str(status)
+    base = next(s for s in client.get("/api/settings").json()["settings"] if s["key"] == "ollama_base_url")
+    assert base["hidden"] and base["value"] is None and base["env_value"] is None and not base["editable"]
+    assert client.put("/api/settings", json={"values": {"ollama_base_url": "http://other:11434"}}).status_code == 400
+    assert redact("ConnectError: http://127.0.0.1:9/api/chat, host 127.0.0.1") == "ConnectError: <ollama>/api/chat, host <ollama>"
+
+
+def test_queued_jobs_are_counted_and_announced(data_dir, monkeypatch):
+    repo.init()
+    _fake_camera(data_dir, "Porch")
+    client = TestClient(app)  # no lifespan: the worker stays off, so the job stays queued
+    published = []
+    monkeypatch.setattr(bus, "publish", lambda type_, **data: published.append((type_, data)))
+    spec = {"prompt": "Alert me if you see smoke.", "title": "Smoke", "scope": "frame",
+            "focus_questions": ["Is smoke visible?"], "decision_criteria": "Q1 yes."}
+    cond = client.post("/api/cameras/Porch/conditions", json=spec).json()
+    assert client.get("/api/dashboard").json()["jobs"] == {}
+
+    job = client.post(f"/api/conditions/{cond['id']}/backfill", json={}).json()["job_id"]
+    assert ("job", {"job_id": job, "camera_id": "Porch", "status": "QUEUED"}) in published
+    assert client.get("/api/dashboard").json()["jobs"] == {"QUEUED": 1}
+    assert client.get("/api/system/status").json()["worker"]["jobs"] == {"QUEUED": 1}

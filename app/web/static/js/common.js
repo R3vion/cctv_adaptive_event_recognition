@@ -117,21 +117,37 @@ function setPill(id, state, text, title) {
   if (title) pill.title = title;
 }
 
+// What is waiting for the worker: camera events and re-run / backfill jobs. Used by the
+// dashboard Queue tile and the worker pill. Waiting and errors are events (Analyze retries them).
+function queueSummary(queue = {}, jobs = {}) {
+  const events = (queue.QUEUED || 0) + (queue.PROCESSING || 0);
+  const jobCount = (jobs.QUEUED || 0) + (jobs.RUNNING || 0);
+  const waiting = queue.WAITING || 0, errors = queue.ERROR || 0;
+  const n = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
+  return { total: events + jobCount, text: `${n(events, "event")} · ${n(jobCount, "job")} · ${waiting} waiting · ${n(errors, "error")}` };
+}
+
 async function refreshStatus() {
   try {
     const st = await api("/api/system/status");
     const o = st.ollama;
     setPill("pill-ollama", o.ok ? (o.model_available ? "ok" : "busy") : "bad",
       o.ok ? (o.model_available ? o.model : `${o.model} missing`) : "ollama offline",
-      `${o.url}${o.error ? " – " + o.error : ""}`);
-    const w = st.worker;
+      `Ollama, called by the backend${o.error ? " – " + o.error : ""}`);
+    const w = st.worker, q = queueSummary(w.queue, w.jobs);
     setPill("pill-worker", w.busy ? "busy" : "ok",
-      w.busy ? `working: ${w.current || "…"}` : `${w.mode} · idle`,
-      `queued ${w.queue.QUEUED || 0}, waiting ${w.queue.WAITING || 0}, errors ${w.queue.ERROR || 0}`);
+      w.busy ? `working: ${w.current || "…"}` : q.total ? `${w.mode} · ${q.total} queued` : `${w.mode} · idle`,
+      `Analysis worker – ${q.text}`);
   } catch {
     setPill("pill-ollama", "", "ollama ?");
     setPill("pill-worker", "", "worker ?");
   }
+}
+
+let statusTimer = null;
+function refreshStatusSoon() {
+  clearTimeout(statusTimer);
+  statusTimer = setTimeout(refreshStatus, 300);
 }
 
 // --- live stream (SSE) ------------------------------------------------------------
@@ -145,7 +161,7 @@ function onStream(handler) {
       let msg;
       try { msg = JSON.parse(ev.data); } catch { return; }
       for (const h of streamListeners) h(msg);
-      if (msg.type === "worker") refreshStatus();
+      if (["worker", "queue", "job"].includes(msg.type)) refreshStatusSoon();
     };
   }
 }
